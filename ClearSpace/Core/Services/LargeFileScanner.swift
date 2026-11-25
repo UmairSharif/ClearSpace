@@ -4,11 +4,17 @@ enum LargeFileScanner {
     private static let maximumResults = 500
 
     /// Finds the largest files below `root`. Runs off the main thread and honours cancellation.
-    static func scan(root: URL, minimumSize: Int64, includeLibrary: Bool) async -> [FileEntry] {
-        scanSync(root: root, minimumSize: minimumSize, includeLibrary: includeLibrary)
+    /// `home` is injectable so tests can run against a temporary folder.
+    static func scan(
+        root: URL,
+        minimumSize: Int64,
+        includeLibrary: Bool,
+        home: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) async -> [FileEntry] {
+        scanSync(root: root, minimumSize: minimumSize, includeLibrary: includeLibrary, home: home)
     }
 
-    private static func scanSync(root: URL, minimumSize: Int64, includeLibrary: Bool) -> [FileEntry] {
+    private static func scanSync(root: URL, minimumSize: Int64, includeLibrary: Bool, home homeURL: URL) -> [FileEntry] {
         let keys: [URLResourceKey] = [
             .isRegularFileKey,
             .isDirectoryKey,
@@ -17,7 +23,7 @@ enum LargeFileScanner {
             .contentModificationDateKey
         ]
         let keySet = Set(keys)
-        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+        let home = homeURL.standardizedFileURL.path
         let libraryPath = home + "/Library"
         let trashPath = home + "/.Trash"
 

@@ -7,10 +7,10 @@ on:
 
 jobs:
   build:
-    name: Build (macOS)
+    name: Build and test (macOS)
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Xcode version
         run: xcodebuild -version
@@ -28,9 +28,35 @@ jobs:
             build 2>&1 | tee build.log | grep -E "error:|warning: unre|BUILD (SUCCEEDED|FAILED)|\*\* " || true
           grep -q "BUILD SUCCEEDED" build.log
 
+      # Unit tests run against temporary folders and a fake Trash. They never touch
+      # the runner's real home folder contents or Trash.
+      - name: Test
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ClearSpace.xcodeproj \
+            -scheme ClearSpace \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            test 2>&1 | tee test.log | grep -E "error:|Test Case .* (failed|skipped)|Executed [0-9]+ test|TEST (SUCCEEDED|FAILED)|\*\* " || true
+          grep -q "TEST SUCCEEDED" test.log
+
       - name: Annotate errors
         if: failure()
         run: |
-          grep -E "error:" build.log | sort -u | head -40 | while IFS= read -r line; do
+          cat build.log test.log 2>/dev/null | grep -E "error:" | sort -u | head -40 | while IFS= read -r line; do
             echo "::error::${line}"
           done
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: |
+            TestResults.xcresult
+            test.log
+          if-no-files-found: ignore
