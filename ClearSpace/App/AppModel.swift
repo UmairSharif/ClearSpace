@@ -20,6 +20,10 @@ final class AppModel {
     var report: DeletionReport?
     var isDeleting = false
 
+    init() {
+        UserDefaults.standard.removeObject(forKey: SettingsKey.legacyDeletionMode)
+    }
+
     func refreshDiskUsage() {
         diskUsage = DiskUsageService.current()
     }

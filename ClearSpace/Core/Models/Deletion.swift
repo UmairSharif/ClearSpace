@@ -6,6 +6,10 @@ enum DeletionMode: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    /// The action every confirmation starts with. Permanent deletion is always a
+    /// choice made for one cleanup, never a remembered default.
+    static let initialChoice: DeletionMode = .trash
+
     var title: String {
         switch self {
         case .trash: "Move to Trash"

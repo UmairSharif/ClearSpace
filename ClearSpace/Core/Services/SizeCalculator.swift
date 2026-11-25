@@ -8,11 +8,20 @@ enum SizeCalculator {
     ]
     private static let keySet = Set(keys)
 
-    /// Space a file or folder actually occupies on disk. Symbolic links are not followed.
+    /// Space a file or folder actually occupies on disk. Symbolic links are not followed:
+    /// a link counts as the link itself, because removing it frees only the link.
     static func allocatedSize(of url: URL) -> Int64 {
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { return 0 }
-        guard isDirectory.boolValue else { return fileSize(url) }
+        var info = stat()
+        guard lstat(url.path, &info) == 0 else { return 0 }
+
+        switch info.st_mode & S_IFMT {
+        case S_IFLNK:
+            return Int64(info.st_blocks) * 512
+        case S_IFDIR:
+            break
+        default:
+            return fileSize(url)
+        }
 
         guard let enumerator = FileManager.default.enumerator(
             at: url,
