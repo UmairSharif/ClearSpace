@@ -51,6 +51,13 @@ jobs:
             echo "::error::${line}"
           done
 
+      - name: Show test failures
+        if: failure()
+        run: |
+          grep -nE "error|failed|crash|Restarting|unexpected|Fatal|precondition|signal" test.log | grep -v "^.*warning:" | head -80 || true
+          echo "----- summary -----"
+          xcrun xcresulttool get test-results summary --path TestResults.xcresult 2>/dev/null | head -150 || true
+
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
