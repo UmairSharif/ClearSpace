@@ -4,11 +4,13 @@ A native macOS app that shows what is filling your disk and helps you reclaim th
 
 ![Build](https://github.com/UmairSharif/ClearSpace/actions/workflows/build.yml/badge.svg)
 
-## Download
+![ClearSpace overview](docs/screenshots/overview.png)
 
-Get the latest **ClearSpace .dmg** from [Releases](https://github.com/UmairSharif/ClearSpace/releases/latest), open it and drag ClearSpace into Applications. It needs macOS 14 Sonoma or later and runs natively on Apple silicon and Intel. Each release also has the source code as a .zip and .tar.gz.
+## Screenshots
 
-The app is not notarized by Apple yet, so macOS blocks it the first time you open it. Click **Done**, then go to **System Settings > Privacy & Security** and click **Open Anyway** next to ClearSpace. You only need to do this once per version.
+| Smart Clean | Malware Check |
+|---|---|
+| ![Smart Clean groups reclaimable space by category](docs/screenshots/smart-clean.png) | ![Malware Check scans projects for hidden developer-targeting malware](docs/screenshots/malware-check.png) |
 
 ## Features
 
