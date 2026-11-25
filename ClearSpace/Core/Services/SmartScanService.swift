@@ -5,9 +5,13 @@ enum SmartScanService {
     private static let minimumItemSize: Int64 = 5 * 1024 * 1024
 
     /// Measures one catalog target. Safe to call from any thread.
-    static func resolve(_ target: CleanupTarget, reservedPaths: Set<String>) -> [CleanupItem] {
+    /// `home` is injectable so tests can run against a temporary folder.
+    static func resolve(
+        _ target: CleanupTarget,
+        reservedPaths: Set<String>,
+        home: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> [CleanupItem] {
         let fileManager = FileManager.default
-        let home = fileManager.homeDirectoryForCurrentUser
         let url = home.appendingPathComponent(target.relativePath)
 
         guard fileManager.fileExists(atPath: url.path) else { return [] }
@@ -44,10 +48,12 @@ enum SmartScanService {
     }
 
     /// Absolute paths of every single-item target, so `eachChild` scans do not list them twice.
-    static func reservedPaths() -> Set<String> {
-        let home = FileManager.default.homeDirectoryForCurrentUser
+    static func reservedPaths(
+        for targets: [CleanupTarget] = CleanupCatalog.targets,
+        home: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> Set<String> {
         var paths = Set<String>()
-        for target in CleanupCatalog.targets {
+        for target in targets {
             if case .eachChild = target.mode { continue }
             paths.insert(home.appendingPathComponent(target.relativePath).standardizedFileURL.path)
         }

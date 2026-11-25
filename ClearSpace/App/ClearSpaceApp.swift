@@ -4,11 +4,21 @@ import SwiftUI
 struct ClearSpaceApp: App {
     @State private var appModel = AppModel()
 
+    private static let isHostingUnitTests =
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
     var body: some Scene {
         Window("ClearSpace", id: "main") {
-            RootView()
-                .environment(appModel)
-                .frame(minWidth: 920, minHeight: 600)
+            if Self.isHostingUnitTests {
+                // The unit test bundle runs inside the app. Stay inert so tests never
+                // trigger scans, permission prompts or the onboarding flow.
+                Text("Running unit tests")
+                    .frame(minWidth: 320, minHeight: 200)
+            } else {
+                RootView()
+                    .environment(appModel)
+                    .frame(minWidth: 920, minHeight: 600)
+            }
         }
         .defaultSize(width: 1080, height: 700)
         .windowToolbarStyle(.unified)
