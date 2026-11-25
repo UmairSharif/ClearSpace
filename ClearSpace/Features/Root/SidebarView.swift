@@ -15,6 +15,10 @@ struct SidebarView: View {
                 row(.largeFiles)
                 row(.projects)
             }
+
+            Section("Security") {
+                row(.malware)
+            }
         }
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {

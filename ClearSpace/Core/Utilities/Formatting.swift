@@ -26,4 +26,5 @@ enum SettingsKey {
     /// Delete Permanently the default. `AppModel` removes the stale value at launch.
     static let legacyDeletionMode = "deletionMode"
     static let projectsRootPath = "projectsRootPath"
+    static let threatScanRootPath = "threatScanRootPath"
 }

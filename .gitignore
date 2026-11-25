@@ -17,8 +17,6 @@ xcuserdata/
 
 # macOS
 .DS_Store
-config.bat
-node_modules
 
 # Editor config (a malicious auto-run task was shipped here once)
 .vscode/

@@ -15,6 +15,7 @@ A native macOS app that shows what is filling your disk and helps you reclaim th
   - Docker and simulator disk images, shown with the command that cleans them properly
 - **Large Files**: find the biggest files in any folder, sort them, and reveal them in Finder.
 - **Project Junk**: find `node_modules`, `Pods`, `build`, `.dart_tool`, `DerivedData`, `target` and similar folders across your projects. Source code is never touched.
+- **Malware Check**: find hidden malware aimed at developers in your projects, such as VS Code tasks that run when a folder is opened, scripts disguised as fonts or images, obfuscated or off-screen code, and leftovers on your Mac. Every finding says why it was flagged, nothing is run, and removal goes through the same confirmation and Trash. See [docs/hidden-malware.md](docs/hidden-malware.md) for the cleanup guide.
 
 ## Safety model
 
