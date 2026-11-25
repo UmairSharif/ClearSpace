@@ -2,21 +2,16 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var appModel
-    @AppStorage(SettingsKey.deletionMode) private var modeRawValue = DeletionMode.trash.rawValue
     @AppStorage(SettingsKey.hasCompletedOnboarding) private var hasCompletedOnboarding = true
 
     var body: some View {
         Form {
             Section {
-                Picker("Default action", selection: $modeRawValue) {
-                    ForEach(DeletionMode.allCases) { mode in
-                        Text(mode.title).tag(mode.rawValue)
-                    }
-                }
+                LabeledContent("Default action", value: DeletionMode.initialChoice.title)
             } header: {
                 Text("Cleaning")
             } footer: {
-                Text("You always confirm before anything is removed, and you can change the action each time.")
+                Text("You always confirm before anything is removed. Each cleanup starts with Move to Trash, and you can choose Delete Permanently in the confirmation for that cleanup only.")
             }
 
             Section("Permissions") {

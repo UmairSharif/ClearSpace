@@ -22,6 +22,8 @@ enum Pluralize {
 
 enum SettingsKey {
     static let hasCompletedOnboarding = "hasCompletedOnboarding"
-    static let deletionMode = "deletionMode"
+    /// No longer used. Earlier builds remembered the delete mode here, which could make
+    /// Delete Permanently the default. `AppModel` removes the stale value at launch.
+    static let legacyDeletionMode = "deletionMode"
     static let projectsRootPath = "projectsRootPath"
 }
