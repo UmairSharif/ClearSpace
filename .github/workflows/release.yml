@@ -1,0 +1,192 @@
+name: Release
+
+# Builds ClearSpace.app in Release, packages it as a .dmg and publishes a GitHub Release.
+#
+# - Pull requests that touch this file only build the .dmg and upload it as a workflow
+#   artifact, so packaging can be checked before anything is published.
+# - Pushing a tag such as v1.0.3, or running this workflow by hand from the Actions tab,
+#   publishes the release. The version always comes from MARKETING_VERSION in the
+#   Xcode project, and a pushed tag must match it.
+#
+# Signing: without secrets the app is ad-hoc signed, so macOS asks users to approve it on
+# first launch. Add these repository secrets to sign with a Developer ID and notarize:
+#   MACOS_CERTIFICATE           base64 of a "Developer ID Application" .p12
+#   MACOS_CERTIFICATE_PASSWORD  password of that .p12
+#   APPLE_TEAM_ID               10 character team id
+#   APPLE_ID                    Apple ID email used for notarization
+#   APPLE_APP_PASSWORD          app-specific password for that Apple ID
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Package DMG
+    runs-on: macos-15
+    env:
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Import Developer ID certificate
+        if: env.MACOS_CERTIFICATE != ''
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Build Release app
+        run: |
+          set -o pipefail
+          if [ -n "$MACOS_CERTIFICATE" ]; then
+            SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=Developer ID Application"
+                     "DEVELOPMENT_TEAM=$APPLE_TEAM_ID"
+                     "OTHER_CODE_SIGN_FLAGS=--timestamp --keychain $SIGNING_KEYCHAIN")
+          else
+            # Ad-hoc signature. Apple silicon refuses to launch unsigned code at all.
+            SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=)
+          fi
+          xcodebuild \
+            -project ClearSpace.xcodeproj \
+            -scheme ClearSpace \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath build \
+            ONLY_ACTIVE_ARCH=NO \
+            "${SIGNING[@]}" \
+            build 2>&1 | tee build.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)|\*\* " || true
+          grep -q "BUILD SUCCEEDED" build.log
+
+      - name: Read version
+        id: version
+        run: |
+          APP="build/Build/Products/Release/ClearSpace.app"
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
+          BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
+          echo "App version $VERSION ($BUILD)"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match MARKETING_VERSION $VERSION in the Xcode project."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "app=$APP" >> "$GITHUB_OUTPUT"
+          echo "dmg=ClearSpace-$VERSION.dmg" >> "$GITHUB_OUTPUT"
+
+      - name: Verify app bundle
+        run: |
+          APP="${{ steps.version.outputs.app }}"
+          lipo -info "$APP/Contents/MacOS/ClearSpace"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -dvv "$APP" 2>&1 | grep -E "Identifier|Authority|Signature|TeamIdentifier|flags" || true
+
+      - name: Create DMG
+        run: |
+          STAGING="$RUNNER_TEMP/dmg"
+          mkdir -p "$STAGING"
+          ditto "${{ steps.version.outputs.app }}" "$STAGING/ClearSpace.app"
+          ln -s /Applications "$STAGING/Applications"
+          hdiutil create \
+            -volname "ClearSpace ${{ steps.version.outputs.version }}" \
+            -srcfolder "$STAGING" \
+            -fs HFS+ -format UDZO -ov \
+            "${{ steps.version.outputs.dmg }}"
+          if [ -n "$MACOS_CERTIFICATE" ]; then
+            codesign --sign "Developer ID Application" --timestamp \
+              --keychain "$SIGNING_KEYCHAIN" "${{ steps.version.outputs.dmg }}"
+          fi
+          hdiutil verify "${{ steps.version.outputs.dmg }}"
+
+      - name: Notarize DMG
+        if: env.MACOS_CERTIFICATE != '' && env.APPLE_ID != ''
+        run: |
+          xcrun notarytool submit "${{ steps.version.outputs.dmg }}" \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" \
+            --wait
+          xcrun stapler staple "${{ steps.version.outputs.dmg }}"
+
+      - name: Checksum
+        run: |
+          shasum -a 256 "${{ steps.version.outputs.dmg }}" | tee "${{ steps.version.outputs.dmg }}.sha256"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.dmg }}
+          path: |
+            ${{ steps.version.outputs.dmg }}
+            ${{ steps.version.outputs.dmg }}.sha256
+
+      - name: Publish GitHub Release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          DMG: ${{ steps.version.outputs.dmg }}
+        run: |
+          if [ -n "$MACOS_CERTIFICATE" ] && [ -n "$APPLE_ID" ]; then
+            FIRST_LAUNCH="The app is signed with a Developer ID and notarized by Apple, so it opens normally."
+          else
+            FIRST_LAUNCH=$(cat <<'EOF'
+          This build is not notarized by Apple yet, so macOS blocks it the first time:
+
+          1. Open ClearSpace once. macOS says it cannot verify the app. Click **Done**.
+          2. Open **System Settings > Privacy & Security**, scroll down and click **Open Anyway** next to ClearSpace.
+          3. Confirm with your password. After that it opens normally.
+
+          Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/ClearSpace.app`
+          EOF
+          )
+          fi
+          cat > notes.md <<EOF
+          ## Install
+
+          1. Download **$DMG** below.
+          2. Open it and drag **ClearSpace** into **Applications**.
+          3. Requires macOS 14 Sonoma or later. Runs natively on Apple silicon and Intel.
+
+          $FIRST_LAUNCH
+
+          SHA-256: \`$(cut -d' ' -f1 "$DMG.sha256")\`
+
+          The source code archives below are generated by GitHub from tag $TAG.
+          EOF
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$DMG" "$DMG.sha256" --clobber
+          else
+            gh release create "$TAG" "$DMG" "$DMG.sha256" \
+              --target "$GITHUB_SHA" \
+              --title "ClearSpace $VERSION" \
+              --notes-file notes.md \
+              --generate-notes
+          fi
