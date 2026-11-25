@@ -19,4 +19,5 @@ xcuserdata/
 .DS_Store
 
 # Editor config (a malicious auto-run task was shipped here once)
-.vscode/
+config.bat
+node_modules
