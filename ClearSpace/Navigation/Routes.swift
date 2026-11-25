@@ -6,6 +6,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
     case smartClean
     case largeFiles
     case projects
+    case malware
 
     var id: String { rawValue }
 
@@ -15,6 +16,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
         case .smartClean: "Smart Clean"
         case .largeFiles: "Large Files"
         case .projects: "Project Junk"
+        case .malware: "Malware Check"
         }
     }
 
@@ -24,6 +26,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
         case .smartClean: "sparkles"
         case .largeFiles: "doc.badge.ellipsis"
         case .projects: "hammer"
+        case .malware: "exclamationmark.shield"
         }
     }
 }

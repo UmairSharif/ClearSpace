@@ -51,6 +51,16 @@ extension SafetyLevel {
     }
 }
 
+extension ThreatLevel {
+    var tint: Color {
+        switch self {
+        case .low: .secondary
+        case .medium: .orange
+        case .high: .red
+        }
+    }
+}
+
 extension ArtifactKind {
     var tint: Color {
         switch self {

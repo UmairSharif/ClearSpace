@@ -80,6 +80,8 @@ struct SectionHost: View {
             LargeFilesView()
         case .projects:
             ProjectArtifactsView()
+        case .malware:
+            ThreatScanView()
         }
     }
 }

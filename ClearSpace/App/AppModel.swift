@@ -10,6 +10,7 @@ final class AppModel {
     let smartClean = SmartCleanViewModel()
     let largeFiles = LargeFilesViewModel()
     let projects = ProjectArtifactsViewModel()
+    let threats = ThreatScanViewModel()
 
     var diskUsage: DiskUsage = .empty
     var hasFullDiskAccess = false
