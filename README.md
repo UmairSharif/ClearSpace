@@ -4,6 +4,12 @@ A native macOS app that shows what is filling your disk and helps you reclaim th
 
 ![Build](https://github.com/UmairSharif/ClearSpace/actions/workflows/build.yml/badge.svg)
 
+## Download
+
+Get the latest **ClearSpace .dmg** from [Releases](https://github.com/UmairSharif/ClearSpace/releases/latest), open it and drag ClearSpace into Applications. It needs macOS 14 Sonoma or later and runs natively on Apple silicon and Intel. Each release also has the source code as a .zip and .tar.gz.
+
+The app is not notarized by Apple yet, so macOS blocks it the first time you open it. Click **Done**, then go to **System Settings > Privacy & Security** and click **Open Anyway** next to ClearSpace. You only need to do this once per version.
+
 ## Features
 
 - **Overview**: disk usage at a glance, with the reclaimable share highlighted.
@@ -46,6 +52,10 @@ The app is not sandboxed, because a sandboxed app cannot read the cache folders 
 
 - macOS 14 Sonoma or later
 - Xcode 16 or later to build
+
+## Publishing a release
+
+Bump `MARKETING_VERSION` in the Xcode project, merge to `main`, then run the **Release** workflow from the Actions tab (or push a tag such as `v1.0.3`). It builds a universal Release app, packages `ClearSpace-<version>.dmg` with a SHA-256 checksum, and publishes the GitHub Release. See [release.yml](.github/workflows/release.yml) for the optional Developer ID signing and notarization secrets.
 
 ## Build and run
 
