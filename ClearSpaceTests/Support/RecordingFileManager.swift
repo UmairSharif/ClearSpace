@@ -5,28 +5,29 @@ import Foundation
 /// sandbox stops the test run before anything happens.
 final class RecordingFileManager: FileManager {
     let sandbox: URL
-    private(set) var trashed: [URL] = []
-    private(set) var removed: [URL] = []
-    /// Paths (standardized) that fail with a permission error when trashed or removed.
+    /// Canonical paths (see `TemporaryDirectory.canonical`) of what was trashed or removed.
+    private(set) var trashed: [String] = []
+    private(set) var removed: [String] = []
+    /// Canonical paths that fail with a permission error when trashed or removed.
     var failingPaths: Set<String> = []
 
     init(sandbox: URL) {
-        self.sandbox = sandbox.standardizedFileURL
+        self.sandbox = sandbox
         super.init()
     }
 
     var fakeTrash: URL { sandbox.appendingPathComponent(".Trash", isDirectory: true) }
 
     private func requireInsideSandbox(_ url: URL) {
-        let path = url.standardizedFileURL.path
+        let path = TemporaryDirectory.canonical(url)
         precondition(
-            path.hasPrefix(sandbox.path + "/"),
+            path.hasPrefix(TemporaryDirectory.canonical(sandbox) + "/"),
             "Test tried to delete outside its temporary folder: \(path)"
         )
     }
 
     private func failIfAsked(_ url: URL) throws {
-        if failingPaths.contains(url.standardizedFileURL.path) {
+        if failingPaths.contains(TemporaryDirectory.canonical(url)) {
             throw CocoaError(.fileWriteNoPermission, userInfo: [NSFilePathErrorKey: url.path])
         }
     }
@@ -39,16 +40,18 @@ final class RecordingFileManager: FileManager {
         try failIfAsked(url)
         try createDirectory(at: fakeTrash, withIntermediateDirectories: true)
         let destination = fakeTrash.appendingPathComponent("\(UUID().uuidString)-\(url.lastPathComponent)")
+        let path = TemporaryDirectory.canonical(url)
         try moveItem(at: url, to: destination)
-        trashed.append(url.standardizedFileURL)
+        trashed.append(path)
         outResultingURL?.pointee = destination as NSURL
     }
 
     override func removeItem(at url: URL) throws {
         requireInsideSandbox(url)
         try failIfAsked(url)
+        let path = TemporaryDirectory.canonical(url)
         try super.removeItem(at: url)
-        removed.append(url.standardizedFileURL)
+        removed.append(path)
     }
 
     override func removeItem(atPath path: String) throws {

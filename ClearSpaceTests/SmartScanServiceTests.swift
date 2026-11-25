@@ -50,7 +50,7 @@ final class SmartScanServiceTests: XCTestCase {
 
         XCTAssertEqual(items.count, 1)
         let item = try XCTUnwrap(items.first)
-        XCTAssertEqual(item.url.path, home.path(".npm/_cacache").path)
+        XCTAssertEqual(TemporaryDirectory.canonical(item.url), TemporaryDirectory.canonical(home.path(".npm/_cacache")))
         XCTAssertFalse(item.contentsOnly)
         XCTAssertEqual(item.safety, .safe)
         XCTAssertGreaterThanOrEqual(item.size, Int64(bigFile))
