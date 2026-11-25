@@ -36,6 +36,10 @@ final class DeletionServiceTests: XCTestCase {
         )
     }
 
+    private func canonical(_ url: URL) -> String {
+        TemporaryDirectory.canonical(url)
+    }
+
     private func perform(_ entries: [DeletionEntry], mode: DeletionMode) async -> DeletionReport {
         await DeletionService.perform(entries, mode: mode, home: home.url, fileManager: fileManager)
     }
@@ -49,7 +53,7 @@ final class DeletionServiceTests: XCTestCase {
         let report = await perform([item], mode: .trash)
 
         XCTAssertFalse(home.exists("Projects/app/node_modules"))
-        XCTAssertEqual(fileManager.trashed.map(\.path), [item.url.path])
+        XCTAssertEqual(fileManager.trashed, [canonical(item.url)])
         XCTAssertTrue(fileManager.removed.isEmpty)
         XCTAssertEqual(report.mode, .trash)
         XCTAssertEqual(report.deletedIDs, [item.id])
@@ -70,7 +74,7 @@ final class DeletionServiceTests: XCTestCase {
 
         XCTAssertFalse(home.exists("Library/Caches/com.example"))
         XCTAssertTrue(home.exists("Library/Caches"))
-        XCTAssertEqual(fileManager.removed.map(\.path), [item.url.path])
+        XCTAssertEqual(fileManager.removed, [canonical(item.url)])
         XCTAssertTrue(fileManager.trashed.isEmpty)
         XCTAssertEqual(report.deletedIDs, [item.id])
     }
@@ -83,8 +87,8 @@ final class DeletionServiceTests: XCTestCase {
 
         let report = await perform([trashContents, artifact], mode: .trash)
 
-        XCTAssertEqual(fileManager.removed.map(\.path), [home.path(".Trash/old.zip").path])
-        XCTAssertEqual(fileManager.trashed.map(\.path), [artifact.url.path])
+        XCTAssertEqual(fileManager.removed, [canonical(home.path(".Trash/old.zip"))])
+        XCTAssertEqual(fileManager.trashed, [canonical(artifact.url)])
         XCTAssertEqual(report.mode, .trash)
         XCTAssertEqual(report.deletedIDs, [trashContents.id, artifact.id])
     }
@@ -101,7 +105,7 @@ final class DeletionServiceTests: XCTestCase {
         XCTAssertTrue(home.exists("Library/Developer/Xcode/DerivedData"))
         let left = try FileManager.default.contentsOfDirectory(atPath: item.url.path)
         XCTAssertTrue(left.isEmpty, "\(left)")
-        XCTAssertEqual(Set(fileManager.removed.map(\.lastPathComponent)), ["App-abc", "Other-def"])
+        XCTAssertEqual(Set(fileManager.removed.map { ($0 as NSString).lastPathComponent }), ["App-abc", "Other-def"])
         XCTAssertEqual(report.deletedIDs, [item.id])
     }
 
@@ -223,7 +227,7 @@ final class DeletionServiceTests: XCTestCase {
         try home.makeFile("Projects/b/node_modules/x.js")
         let ok = entry("Projects/a/node_modules", size: 500)
         let failing = entry("Projects/b/node_modules", size: 700)
-        fileManager.failingPaths = [failing.url.path]
+        fileManager.failingPaths = [canonical(failing.url)]
 
         let report = await perform([ok, failing], mode: .trash)
 
@@ -239,7 +243,7 @@ final class DeletionServiceTests: XCTestCase {
     func testPartiallyEmptiedFolderCountsOnlyWhatWasRemoved() async throws {
         try home.makeFile("Library/Logs/gone.log", size: 64 * Bytes.kilobyte)
         let stays = try home.makeFile("Library/Logs/stays.log", size: 64 * Bytes.kilobyte)
-        fileManager.failingPaths = [stays.path]
+        fileManager.failingPaths = [canonical(stays)]
         let item = entry("Library/Logs", size: Int64(128 * Bytes.kilobyte), contentsOnly: true)
 
         let report = await perform([item], mode: .permanent)

@@ -38,13 +38,23 @@ final class TemporaryDirectory {
 
     /// Returns `url/relativePath` after checking it stays inside this folder.
     func path(_ relativePath: String) -> URL {
-        let child = url.appendingPathComponent(relativePath).standardizedFileURL
+        let child = url.appendingPathComponent(relativePath)
         precondition(contains(child), "Test path escaped the temporary directory: \(child.path)")
         return child
     }
 
     func contains(_ other: URL) -> Bool {
-        other.standardizedFileURL.path.hasPrefix(url.path + "/")
+        Self.canonical(other).hasPrefix(Self.canonical(url) + "/")
+    }
+
+    /// Standardized path without the `/private` prefix. `standardizedFileURL` drops
+    /// `/private` only when the item exists, so paths are compared in this form.
+    static func canonical(_ url: URL) -> String {
+        let path = url.standardizedFileURL.path
+        for prefix in ["/private/var/", "/private/tmp/"] where path.hasPrefix(prefix) {
+            return String(path.dropFirst("/private".count))
+        }
+        return path
     }
 
     @discardableResult
