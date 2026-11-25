@@ -4,12 +4,10 @@ import SwiftUI
 /// lets the user choose between the Trash and permanent deletion.
 struct DeleteConfirmationSheet: View {
     @Environment(AppModel.self) private var appModel
-    @AppStorage(SettingsKey.deletionMode) private var modeRawValue = DeletionMode.trash.rawValue
+    /// Not persisted: every confirmation starts at Move to Trash, so choosing
+    /// Delete Permanently once never becomes the default for the next cleanup.
+    @State private var mode: DeletionMode = .initialChoice
     let request: DeletionRequest
-
-    private var mode: DeletionMode {
-        DeletionMode(rawValue: modeRawValue) ?? .trash
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.large) {
@@ -26,9 +24,9 @@ struct DeleteConfirmationSheet: View {
             entryList
 
             VStack(alignment: .leading, spacing: 6) {
-                Picker("When cleaning", selection: $modeRawValue) {
+                Picker("When cleaning", selection: $mode) {
                     ForEach(DeletionMode.allCases) { mode in
-                        Text(mode.title).tag(mode.rawValue)
+                        Text(mode.title).tag(mode)
                     }
                 }
                 .pickerStyle(.radioGroup)
